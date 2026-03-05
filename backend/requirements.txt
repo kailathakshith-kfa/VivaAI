@@ -3,7 +3,7 @@ uvicorn[standard]==0.29.0
 python-multipart==0.0.9
 faster-whisper==1.1.0
 sentence-transformers==2.7.0
-transformers==4.40.2
+transformers>=4.40.0
 scikit-learn
 numpy
 yt-dlp
