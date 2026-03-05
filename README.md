@@ -89,9 +89,21 @@ npm run dev
 |--------|------|-------------|
 | GET | `/` | Health check |
 | POST | `/upload-video` | Upload video, get transcript |
+| POST | `/upload-youtube` | Process YouTube link, get transcript |
 | POST | `/evaluate-answer` | Score transcript vs. reference |
 
 API docs (Swagger): [http://localhost:8000/docs](http://localhost:8000/docs)
+
+---
+
+## Why run locally?
+
+Running VivaAI on your own machine is the best experience for several reasons:
+
+1.  **Reliable YouTube Links**: Unlike cloud servers (Render/AWS), your local IP isn't blocked by YouTube's bot detection.
+2.  **Higher Accuracy**: We use the **Whisper `base` model** (instead of `tiny`) for much better transcription.
+3.  **No Limits**: Process long videos without worrying about the 512MB RAM limit of free tiers.
+4.  **Privacy**: Your videos and transcripts stay on your machine.
 
 ---
 

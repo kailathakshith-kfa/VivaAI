@@ -21,10 +21,13 @@ from services import (
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
 
-# ── Lifespan ──────────────────────────────────────────────────────────────────
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info("Server starting. Models will load on first request.")
+    logger.info("Pre-loading AI models...")
+    from services.ai_models import _get_whisper_model, _get_embedding_model
+    _get_whisper_model()
+    _get_embedding_model()
+    logger.info("Models loaded. Server ready.")
     yield
 
 # ── App ───────────────────────────────────────────────────────────────────────
@@ -37,7 +40,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
