@@ -1,5 +1,4 @@
-import whisper
-import torch
+from faster_whisper import WhisperModel
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
@@ -9,27 +8,32 @@ from functools import lru_cache
 
 @lru_cache(maxsize=1)
 def _get_whisper_model():
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    print(f"[AI] Loading Whisper model on {device}...")
-    return whisper.load_model("base", device=device)
+    print("[AI] Loading Faster-Whisper model (base)...")
+    # Use "base" model with int8 quantization for lowest memory usage
+    model = WhisperModel("base", device="cpu", compute_type="int8")
+    print("[AI] Whisper model loaded.")
+    return model
 
 
 @lru_cache(maxsize=1)
 def _get_embedding_model():
     print("[AI] Loading SentenceTransformer model...")
-    return SentenceTransformer("all-MiniLM-L6-v2")
+    model = SentenceTransformer("all-MiniLM-L6-v2")
+    print("[AI] Embedding model loaded.")
+    return model
 
 
 # ── Transcription ─────────────────────────────────────────────────────────────
 
 def transcribe_audio(audio_path: str) -> str:
     """
-    Transcribes an audio file using OpenAI Whisper.
+    Transcribes an audio file using Faster-Whisper (CTranslate2).
     Returns the transcribed text string.
     """
     model = _get_whisper_model()
-    result = model.transcribe(audio_path, fp16=False)
-    return result["text"].strip()
+    segments, _info = model.transcribe(audio_path, beam_size=5)
+    text = " ".join(segment.text.strip() for segment in segments)
+    return text.strip()
 
 
 # ── Similarity ────────────────────────────────────────────────────────────────
@@ -90,17 +94,17 @@ def generate_feedback(transcript: str, reference: str, score: float) -> str:
     feedback = f"**{quality} ({percentage:.1f}%)** — {summary}\n\n"
 
     if matched:
-        feedback += f"✅ **Key concepts covered:** {', '.join(sorted(matched)[:8])}.\n\n"
+        feedback += f"Key concepts covered: {', '.join(sorted(matched)[:8])}.\n\n"
 
     if missing_keywords:
         top_missing = sorted(missing_keywords)[:6]
-        feedback += f"💡 **Consider including:** {', '.join(top_missing)} to strengthen your explanation.\n\n"
+        feedback += f"Consider including: {', '.join(top_missing)} to strengthen your explanation.\n\n"
 
     if coverage_ratio >= 0.8:
-        feedback += "🌟 You covered a high proportion of the reference keywords — great depth!"
+        feedback += "You covered a high proportion of the reference keywords — great depth!"
     elif coverage_ratio >= 0.5:
-        feedback += "📝 Aim to elaborate more on the core concepts for a stronger explanation."
+        feedback += "Aim to elaborate more on the core concepts for a stronger explanation."
     else:
-        feedback += "📖 Review the reference answer and focus on the key terms and definitions."
+        feedback += "Review the reference answer and focus on the key terms and definitions."
 
     return feedback
