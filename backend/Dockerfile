@@ -6,9 +6,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg && \
 
 WORKDIR /app
 
-# Install Python dependencies first (cached layer)
+# Install Python dependencies
 COPY requirements.txt .
+
+# Install CPU-only PyTorch FIRST (saves ~3GB by skipping CUDA/nvidia libs)
 RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu && \
     pip install --no-cache-dir -r requirements.txt
 
 # Copy application code

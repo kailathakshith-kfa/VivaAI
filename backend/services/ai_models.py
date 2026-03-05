@@ -8,9 +8,9 @@ from functools import lru_cache
 
 @lru_cache(maxsize=1)
 def _get_whisper_model():
-    print("[AI] Loading Faster-Whisper model (base)...")
-    # Use "base" model with int8 quantization for lowest memory usage
-    model = WhisperModel("base", device="cpu", compute_type="int8")
+    print("[AI] Loading Faster-Whisper model (tiny)...")
+    # Use "tiny" model with int8 quantization for minimum memory usage
+    model = WhisperModel("tiny", device="cpu", compute_type="int8")
     print("[AI] Whisper model loaded.")
     return model
 

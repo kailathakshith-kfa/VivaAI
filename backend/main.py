@@ -21,14 +21,10 @@ from services import (
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
 
-# ── Lifespan: pre-load models on startup ──────────────────────────────────────
+# ── Lifespan ──────────────────────────────────────────────────────────────────
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info("Pre-loading AI models…")
-    from services.ai_models import _get_whisper_model, _get_embedding_model
-    _get_whisper_model()
-    _get_embedding_model()
-    logger.info("Models loaded. Server ready.")
+    logger.info("Server starting. Models will load on first request.")
     yield
 
 # ── App ───────────────────────────────────────────────────────────────────────
