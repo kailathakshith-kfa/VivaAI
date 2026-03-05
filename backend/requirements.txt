@@ -6,4 +6,4 @@ sentence-transformers==2.7.0
 transformers>=4.40.0
 scikit-learn
 numpy
-yt-dlp
+youtube-transcript-api

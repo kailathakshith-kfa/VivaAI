@@ -1,6 +1,4 @@
-import os
 import re
-import tempfile
 import logging
 
 logger = logging.getLogger(__name__)
@@ -16,53 +14,57 @@ def is_youtube_url(url: str) -> bool:
     return any(re.match(p, url.strip()) for p in patterns)
 
 
-def download_youtube_video(url: str) -> str:
-    """
-    Downloads a YouTube video using yt-dlp and returns the path to the file.
-    Downloads the best audio-only format to save time and bandwidth.
-    """
-    import yt_dlp
+def extract_video_id(url: str) -> str:
+    """Extract the video ID from a YouTube URL."""
+    patterns = [
+        r'(?:youtube\.com/watch\?v=|youtu\.be/|youtube\.com/shorts/)([\w-]+)',
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, url.strip())
+        if match:
+            return match.group(1)
+    raise ValueError(f"Could not extract video ID from URL: {url}")
 
-    temp_dir = tempfile.mkdtemp()
-    output_path = os.path.join(temp_dir, "youtube_audio.%(ext)s")
 
-    ydl_opts = {
-        "format": "bestaudio/best",
-        "outtmpl": output_path,
-        "quiet": True,
-        "no_warnings": True,
-        "extract_audio": True,
-        "postprocessors": [{
-            "key": "FFmpegExtractAudio",
-            "preferredcodec": "wav",
-            "preferredquality": "192",
-        }],
-        # Limit to 15 minutes max
-        "match_filter": yt_dlp.utils.match_filter_func("duration < 900"),
-    }
+def get_youtube_transcript(url: str) -> str:
+    """
+    Fetches the transcript of a YouTube video using youtube-transcript-api.
+    Falls back to auto-generated captions if manual ones aren't available.
+    Returns the full transcript text.
+    """
+    from youtube_transcript_api import YouTubeTranscriptApi
+
+    video_id = extract_video_id(url)
+    logger.info(f"Fetching transcript for video ID: {video_id}")
 
     try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            logger.info(f"Downloading audio from YouTube: {url}")
-            info = ydl.extract_info(url, download=True)
-            title = info.get("title", "Unknown")
-            logger.info(f"Downloaded: {title}")
+        ytt_api = YouTubeTranscriptApi()
+        transcript_list = ytt_api.fetch(video_id)
 
-        # Find the output file (will be .wav after postprocessing)
-        for f in os.listdir(temp_dir):
-            if f.endswith(".wav"):
-                return os.path.join(temp_dir, f)
+        # Combine all text segments
+        full_text = " ".join(
+            entry.text.strip()
+            for entry in transcript_list
+            if entry.text.strip()
+        )
 
-        # Fallback: return whatever file was downloaded
-        files = os.listdir(temp_dir)
-        if files:
-            return os.path.join(temp_dir, files[0])
+        if not full_text:
+            raise RuntimeError("Transcript was empty.")
 
-        raise RuntimeError("yt-dlp did not produce any output file.")
+        logger.info(f"Transcript fetched: {len(full_text)} characters")
+        return full_text
 
     except Exception as e:
-        # Clean up on error
-        import shutil
-        if os.path.exists(temp_dir):
-            shutil.rmtree(temp_dir, ignore_errors=True)
-        raise RuntimeError(f"Failed to download YouTube video: {str(e)}") from e
+        error_msg = str(e)
+        if "TranscriptsDisabled" in error_msg:
+            raise RuntimeError(
+                "This video has transcripts/captions disabled. "
+                "Please try a video with captions enabled."
+            ) from e
+        elif "NoTranscriptFound" in error_msg:
+            raise RuntimeError(
+                "No transcript found for this video. "
+                "Please try a video with auto-generated or manual captions."
+            ) from e
+        else:
+            raise RuntimeError(f"Failed to fetch transcript: {error_msg}") from e

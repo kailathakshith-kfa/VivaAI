@@ -13,7 +13,7 @@ from services import (
     transcribe_audio,
     compute_similarity,
     generate_feedback,
-    download_youtube_video,
+    get_youtube_transcript,
     is_youtube_url,
 )
 
@@ -116,37 +116,28 @@ async def upload_video(video: UploadFile = File(...)):
 @app.post("/upload-youtube", response_model=TranscriptResponse)
 async def upload_youtube(payload: YouTubeRequest):
     """
-    Accepts a YouTube URL, downloads the audio, and returns a transcript.
+    Accepts a YouTube URL, fetches the transcript from YouTube captions,
+    and returns it. No video download or audio processing needed.
     """
     url = payload.url.strip()
 
     if not is_youtube_url(url):
         raise HTTPException(status_code=400, detail="Invalid YouTube URL. Please provide a valid youtube.com or youtu.be link.")
 
-    audio_path = None
-    temp_dir = None
     try:
-        logger.info(f"Downloading YouTube video: {url}")
-        audio_path = download_youtube_video(url)
-        # Track the temp directory for cleanup
-        temp_dir = os.path.dirname(audio_path)
-
-        logger.info(f"Transcribing YouTube audio: {audio_path}")
-        transcript = transcribe_audio(audio_path)
+        logger.info(f"Fetching YouTube transcript: {url}")
+        transcript = get_youtube_transcript(url)
 
         if not transcript:
-            raise HTTPException(status_code=422, detail="Could not extract speech from the YouTube video.")
+            raise HTTPException(status_code=422, detail="Could not get transcript from the YouTube video.")
 
         return TranscriptResponse(
             transcript=transcript,
-            message="YouTube video transcribed successfully."
+            message="YouTube transcript fetched successfully."
         )
 
     except RuntimeError as e:
         raise HTTPException(status_code=500, detail=str(e))
-    finally:
-        if temp_dir and os.path.exists(temp_dir):
-            shutil.rmtree(temp_dir, ignore_errors=True)
 
 
 @app.post("/evaluate-answer", response_model=EvaluateResponse)
